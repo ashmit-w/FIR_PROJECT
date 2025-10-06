@@ -12,15 +12,15 @@ const connectDB = async () => {
     mongoose.set('strictQuery', false);
     
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 60000, // 60 seconds
-      socketTimeoutMS: 60000, // 60 seconds
-      connectTimeoutMS: 60000, // 60 seconds
-      maxPoolSize: 5, // Reduce pool size
+      serverSelectionTimeoutMS: 30000, // 30 seconds
+      socketTimeoutMS: 30000, // 30 seconds
+      connectTimeoutMS: 30000, // 30 seconds
+      maxPoolSize: 10, // Increase pool size
+      minPoolSize: 2, // Minimum connections
       bufferCommands: false, // Disable mongoose buffering
       retryWrites: true,
       w: 'majority',
-      useNewUrlParser: true,
-      useUnifiedTopology: true
+      heartbeatFrequencyMS: 10000, // Heartbeat every 10 seconds
     });
 
     console.log(`✅ MongoDB Atlas Connected Successfully!`);
@@ -35,11 +35,15 @@ const connectDB = async () => {
     });
     
     mongoose.connection.on('disconnected', () => {
-      console.log('⚠️ MongoDB disconnected');
+      console.log('⚠️ MongoDB disconnected - attempting reconnection...');
     });
     
     mongoose.connection.on('reconnected', () => {
-      console.log('🔄 MongoDB reconnected');
+      console.log('🔄 MongoDB reconnected successfully!');
+    });
+    
+    mongoose.connection.on('close', () => {
+      console.log('🔒 MongoDB connection closed');
     });
     
   } catch (error) {
@@ -60,9 +64,10 @@ const connectDB = async () => {
     console.log('⚠️  Server will start but authentication will not work');
     console.log('💡 To fix this:');
     console.log('   1. Check if MongoDB Atlas cluster is running');
-    console.log('   2. Whitelist your IP address in Atlas Network Access');
+    console.log('   2. Whitelist your IP address (103.255.182.162) in Atlas Network Access');
     console.log('   3. Verify username/password are correct');
     console.log('   4. Check if cluster is paused');
+    console.log('   5. Go to: https://cloud.mongodb.com/ → Network Access → Add IP Address');
     console.log('');
     console.log('🔄 Retrying connection in 30 seconds...');
     

@@ -1,6 +1,7 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const { errorHandler } = require('./utils/errorHandler');
 
 // Load environment variables
 dotenv.config();
@@ -12,10 +13,6 @@ const app = express();
 
 // Import auth controller and middleware
 const authController = require('./controllers/authController');
-const { setFileStorage } = require('./middleware/authMiddleware');
-
-// Connect fileStorage to middleware
-setFileStorage(authController.fileStorage);
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -36,8 +33,9 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/firs', require('./routes/firRoutes'));
-app.use('/api/firs', require('./routes/disposalRoutes'));
-app.use('/api/performance-report', require('./routes/disposalRoutes'));
+app.use('/api/disposal', require('./routes/disposalRoutes'));
+app.use('/api/performance-report', require('./routes/performanceRoutes'));
+app.use('/api/reports', require('./routes/reportRoutes'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -71,15 +69,7 @@ app.use('*', (req, res) => {
 });
 
 // Global error handler
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-  
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
 

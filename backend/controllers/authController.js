@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
-const FileStorage = require('../storage/FileStorage');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -9,12 +8,6 @@ const generateToken = (id) => {
     expiresIn: process.env.JWT_EXPIRE || '7d',
   });
 };
-
-// @desc    Register a new user
-// @route   POST /api/auth/register
-// @access  Public
-// Persistent file-based storage
-const fileStorage = new FileStorage();
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
@@ -216,6 +209,5 @@ const getProfile = async (req, res) => {
 module.exports = {
   registerUser,
   loginUser,
-  getProfile,
-  fileStorage
+  getProfile
 };

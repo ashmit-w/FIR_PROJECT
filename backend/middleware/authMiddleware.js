@@ -2,14 +2,6 @@ const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
 
-// File storage reference (should match the one in authController)
-let fileStorage = null;
-
-// Function to set fileStorage reference
-const setFileStorage = (fileStorageRef) => {
-  fileStorage = fileStorageRef;
-};
-
 // @desc    Protect routes - verify JWT token
 // @access  Private
 const protect = async (req, res, next) => {
@@ -160,6 +152,5 @@ module.exports = {
   authorize,
   isAdmin,
   isPSOrAdmin,
-  isSDPOOrAdmin,
-  setFileStorage
+  isSDPOOrAdmin
 };

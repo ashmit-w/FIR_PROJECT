@@ -1,20 +1,17 @@
 const express = require('express');
-const { updateFIRDisposal, getPerformanceReport } = require('../controllers/disposalController');
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { updateFIRDisposal } = require('../controllers/disposalController');
+const { protect, canUpdateDisposal } = require('../middleware/permissions');
 
 const router = express.Router();
 
 // All routes are protected
 router.use(protect);
 
-// @route   GET /api/performance-report
-// @desc    Get performance report
-// @access  Private (Admin/SDPO only)
-router.get('/', authorize('admin', 'sdpo'), getPerformanceReport);
-
-// @route   PATCH /api/firs/:id/disposal
-// @desc    Update FIR disposal status
-// @access  Private
-router.patch('/:id/disposal', updateFIRDisposal);
+/**
+ * @route   PATCH /api/disposal/:id
+ * @desc    Update FIR disposal status
+ * @access  Private (Admin/SDPO only)
+ */
+router.patch('/:id', canUpdateDisposal, updateFIRDisposal);
 
 module.exports = router;

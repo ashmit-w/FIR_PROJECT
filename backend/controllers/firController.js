@@ -1,46 +1,254 @@
 const FIR = require('../models/FIR.model');
 const PoliceStation = require('../models/PoliceStation.model');
-const mongoose = require('mongoose');
+const { 
+  asyncHandler, 
+  validateRequired, 
+  validateEnum, 
+  checkUnique, 
+  findByIdOrFail, 
+  sendSuccess, 
+  sendError,
+  paginate 
+} = require('../utils/errorHandler');
+
+// Police station hierarchy data (matching frontend constants + actual DB stations)
+const POLICE_STATION_HIERARCHY = [
+  {
+    label: "North District",
+    value: "north_district",
+    subdivisions: [
+      {
+        label: "Panaji",
+        value: "panaji_sd",
+        stations: ["PANAJI PS", "OLD GOA PS", "AGACAIM PS"]
+      },
+      {
+        label: "Mapusa",
+        value: "mapusa_sd",
+        stations: ["MAPUSA PS", "ANJUNA PS", "COLVALE PS"]
+      },
+      {
+        label: "Bicholim",
+        value: "bicholim_sd",
+        stations: ["BICHOLIM PS", "VALPOI PS"]
+      },
+      {
+        label: "Pernem",
+        value: "pernem_sd",
+        stations: ["PERNEM PS", "MANDREM PS", "MOPA PS"]
+      },
+      {
+        label: "Porvorim",
+        value: "porvorim_sd",
+        stations: ["PORVORIM PS", "CALANGUTE PS", "SALIGAO PS"]
+      }
+    ]
+  },
+  {
+    label: "South District",
+    value: "south_district",
+    subdivisions: [
+      {
+        label: "Margao",
+        value: "margao_sd",
+        stations: ["MARGAO TOWN PS", "MAINA CURTORIM PS", "FATORDA PS", "COLVA PS", "CUNCOLIM PS"]
+      },
+      {
+        label: "Quepem",
+        value: "quepem_sd",
+        stations: ["QUEPEM PS", "SANGUEM PS", "CURCHOREM PS"]
+      },
+      {
+        label: "Vasco",
+        value: "vasco_sd",
+        stations: ["VASCO PS", "VERNA PS", "DABOLIM AIRPORT PS", "MORMUGAO PS", "VASCO RAILWAY PS"]
+      },
+      {
+        label: "Ponda",
+        value: "ponda_sd",
+        stations: ["PONDA PS", "MARDOL PS", "COLLEM PS"]
+      }
+    ]
+  }
+];
+
+// Helper functions for hierarchical filtering
+const getStationsByDistrict = (districtValue) => {
+  const district = POLICE_STATION_HIERARCHY.find(dist => dist.value === districtValue);
+  if (!district) return [];
+  return district.subdivisions.flatMap(sub => sub.stations);
+};
+
+const getStationsBySubdivision = (subdivisionValue) => {
+  const subdivision = POLICE_STATION_HIERARCHY
+    .flatMap(district => district.subdivisions)
+    .find(sub => sub.value === subdivisionValue);
+  return subdivision ? subdivision.stations : [];
+};
 
 // @desc    Get all FIRs
 // @route   GET /api/firs
 // @access  Private
-const getAllFIRs = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, policeStation, status, sortBy = 'filingDate', sortOrder = 'desc' } = req.query;
-    
-    // Build filter object
-    const filter = {};
-    
-    // Filter by police station if user is PS role
+const getAllFIRs = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 100, policeStation, status, urgency, sortBy = 'filingDate', sortOrder = 'desc' } = req.query;
+  
+  // Build filter object
+  const filter = { isActive: true };
+  
+  // Handle police station filtering (including hierarchical)
+  if (policeStation) {
+    // Support hierarchical filtering
+    if (policeStation.includes('_district')) {
+      // Filter by district - need to get all stations in that district
+      const districtStations = getStationsByDistrict(policeStation);
+      filter.$or = [
+        { policeStationOfRegistration: { $in: districtStations } },
+        { assignedPoliceStation: { $in: districtStations } },
+        { policeStation: { $in: districtStations } } // Backward compatibility
+      ];
+    } else if (policeStation.includes('_sd')) {
+      // Filter by subdivision - need to get all stations in that subdivision
+      const subdivisionStations = getStationsBySubdivision(policeStation);
+      filter.$or = [
+        { policeStationOfRegistration: { $in: subdivisionStations } },
+        { assignedPoliceStation: { $in: subdivisionStations } },
+        { policeStation: { $in: subdivisionStations } } // Backward compatibility
+      ];
+    } else {
+      // Filter by specific station
+      filter.$or = [
+        { policeStationOfRegistration: policeStation },
+        { assignedPoliceStation: policeStation },
+        { policeStation: policeStation } // Backward compatibility
+      ];
+    }
+  } else {
+    // Role-based filtering (only if no specific police station filter)
     if (req.user.role === 'ps') {
       filter.policeStation = req.user.police_station;
     } else if (req.user.role === 'sdpo') {
-      // SDPO can see FIRs from their subdivision stations
       filter.policeStation = { $in: req.user.subdivision_stations };
     }
+    // Admin sees all FIRs (no additional filter)
+  }
+  if (status) {
+    validateEnum(status, ['Registered', 'Chargesheeted', 'Finalized'], 'Status');
+    filter.disposalStatus = status;
+  }
+  
+  // Urgency filtering
+  if (urgency) {
+    const urgencyFilters = {
+      'safe': { $gt: 15 }, // More than 15 days left
+      'yellow': { $gte: 10, $lte: 15 }, // 10-15 days left
+      'orange': { $gte: 5, $lt: 10 }, // 5-9 days left
+      'red': { $gt: 0, $lt: 5 }, // 1-4 days left
+      'exceeded': { $lte: 0 }, // Exceeded limit
+      'yellow+': { $lte: 15 }, // Yellow or higher urgency
+      'orange+': { $lte: 9 }, // Orange or higher urgency
+      'red+': { $lte: 4 } // Red or higher urgency
+    };
     
-    // Additional filters
-    if (policeStation) {
-      filter.policeStation = policeStation;
+    if (urgencyFilters[urgency]) {
+      // We need to calculate days remaining in aggregation
+      filter._urgencyFilter = urgencyFilters[urgency];
     }
-    if (status) {
-      filter.status = status;
+  }
+  
+  // Build sort object
+  const sort = {};
+  sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+  
+  let query;
+  
+  // If urgency filtering is needed OR we have hierarchical police station filtering, use aggregation
+  if (filter._urgencyFilter || filter.$or) {
+    const urgencyFilter = filter._urgencyFilter;
+    delete filter._urgencyFilter; // Remove the temporary filter
+    
+    const pipeline = [
+      { $match: filter }
+    ];
+    
+    // Add urgency calculation and filtering if needed
+    if (urgencyFilter) {
+      pipeline.push(
+        {
+          $addFields: {
+            daysRemaining: {
+              $ceil: {
+                $divide: [
+                  { $subtract: ['$disposalDueDate', new Date()] },
+                  1000 * 60 * 60 * 24
+                ]
+              }
+            }
+          }
+        },
+        { $match: { daysRemaining: urgencyFilter } }
+      );
     }
     
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    // Add lookup stages
+    pipeline.push(
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy'
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignedTo',
+          foreignField: '_id',
+          as: 'assignedTo'
+        }
+      },
+      {
+        $lookup: {
+          from: 'policestations',
+          localField: 'policeStationId',
+          foreignField: '_id',
+          as: 'policeStationId'
+        }
+      },
+      {
+        $addFields: {
+          createdBy: { $arrayElemAt: ['$createdBy', 0] },
+          assignedTo: { $arrayElemAt: ['$assignedTo', 0] },
+          policeStationId: { $arrayElemAt: ['$policeStationId', 0] }
+        }
+      },
+      { $sort: sort }
+    );
     
-    const firs = await FIR.find(filter)
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const totalCount = await FIR.aggregate([...pipeline, { $count: 'total' }]);
+    const firs = await FIR.aggregate([...pipeline, { $skip: skip }, { $limit: parseInt(limit) }]);
+    
+    return res.status(200).json({
+      success: true,
+      data: firs,
+      pagination: {
+        currentPage: parseInt(page),
+        totalPages: Math.ceil((totalCount[0]?.total || 0) / parseInt(limit)),
+        totalItems: totalCount[0]?.total || 0,
+        itemsPerPage: parseInt(limit)
+      }
+    });
+  } else {
+    // Regular query without urgency filtering
+    query = FIR.find(filter)
       .populate('createdBy', 'username role')
       .populate('assignedTo', 'username role')
       .populate('policeStationId', 'name code subdivision')
-      .sort(sort)
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
+      .sort(sort);
     
+    const { query: paginatedQuery, pagination } = paginate(query, page, limit);
+    const firs = await paginatedQuery.exec();
     const total = await FIR.countDocuments(filter);
     
     res.status(200).json({
@@ -53,14 +261,8 @@ const getAllFIRs = async (req, res) => {
         itemsPerPage: parseInt(limit)
       }
     });
-  } catch (error) {
-    console.error('Error fetching FIRs:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching FIRs'
-    });
   }
-};
+});
 
 // @desc    Get single FIR
 // @route   GET /api/firs/:id
@@ -107,12 +309,41 @@ const getFIR = async (req, res) => {
   }
 };
 
+// Helper function to find police station by name (handles different formats)
+const findPoliceStation = async (policeStationName) => {
+  console.log('Looking up police station:', policeStationName);
+  
+  // Try exact match first
+  let policeStationDoc = await PoliceStation.findOne({ name: policeStationName });
+  console.log('Exact match result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+  
+  if (!policeStationDoc) {
+    // Try extracting station name from format "Station (Division)"
+    if (policeStationName.includes(' (')) {
+      const stationName = policeStationName.split(' (')[0].toUpperCase();
+      console.log('Trying extracted name:', stationName);
+      policeStationDoc = await PoliceStation.findOne({ name: stationName });
+      console.log('Extracted name result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+    }
+  }
+  
+  if (!policeStationDoc) {
+    // Try case-insensitive search
+    policeStationDoc = await PoliceStation.findOne({ 
+      name: { $regex: new RegExp(`^${policeStationName}$`, 'i') } 
+    });
+    console.log('Case-insensitive result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+  }
+  
+  return policeStationDoc;
+};
+
 // @desc    Create new FIR
 // @route   POST /api/firs
 // @access  Private
 const createFIR = async (req, res) => {
   try {
-    const { firNumber, sections, policeStation, filingDate, seriousnessDays, description } = req.body;
+    const { firNumber, sections, policeStation, filingDate, seriousnessDays, status, disposalDate } = req.body;
     
     // Validate required fields
     if (!firNumber || !sections || !policeStation || !filingDate || !seriousnessDays) {
@@ -149,51 +380,28 @@ const createFIR = async (req, res) => {
       }
     }
     
-    // Extract subdivision name for role-based access control and police station lookup
-    let subdivisionName = policeStation;
-    if (policeStation.includes(' (')) {
-      subdivisionName = policeStation.split(' (')[0];
-    }
-    
-    // Check if user has permission to create FIR for this police station
-    if (req.user.role === 'ps' && subdivisionName !== req.user.police_station) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only create FIRs for your police station'
-      });
-    }
-    
-    if (req.user.role === 'sdpo' && !req.user.subdivision_stations.includes(subdivisionName)) {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only create FIRs for stations in your subdivision'
-      });
-    }
-    
-    // Find the police station by subdivision name to get the ID
-    // Look for police stations that contain the subdivision name
-    const policeStationDoc = await PoliceStation.findOne({ 
-      $or: [
-        { name: subdivisionName },
-        { name: { $regex: new RegExp(subdivisionName, 'i') } },
-        { subdivision: subdivisionName }
-      ]
-    });
+    // Find the police station using helper function
+    const policeStationDoc = await findPoliceStation(policeStation);
     if (!policeStationDoc) {
+      // Get available stations for better error message
+      const availableStations = await PoliceStation.find({ isActive: true }).select('name').lean();
+      const stationNames = availableStations.map(s => s.name).join(', ');
+      
       return res.status(400).json({
         success: false,
-        message: 'Police station not found'
+        message: `Police station not found: ${policeStation}. Available stations: ${stationNames}`
       });
     }
     
     const fir = await FIR.create({
       firNumber,
       sections,
-      policeStation,
+      policeStation: policeStationDoc.name, // Use the actual database name
       policeStationId: policeStationDoc._id,
       filingDate: new Date(filingDate),
       seriousnessDays,
-      description,
+      disposalStatus: status || 'Registered',
+      disposalDate: disposalDate ? new Date(disposalDate) : null,
       createdBy: req.user.id,
       assignedTo: req.user.id
     });
@@ -222,7 +430,7 @@ const createFIR = async (req, res) => {
 // @access  Private
 const updateFIR = async (req, res) => {
   try {
-    const { firNumber, sections, policeStation, filingDate, seriousnessDays, description, status } = req.body;
+    const { firNumber, sections, policeStation, filingDate, seriousnessDays, status, disposalDate } = req.body;
     
     const fir = await FIR.findById(req.params.id);
     if (!fir) {
@@ -271,30 +479,20 @@ const updateFIR = async (req, res) => {
       ...(policeStation && { policeStation }),
       ...(filingDate && { filingDate: new Date(filingDate) }),
       ...(seriousnessDays && { seriousnessDays }),
-      ...(description !== undefined && { description }),
-      ...(status && { status })
+      ...(status && { disposalStatus: status }),
+      ...(disposalDate && { disposalDate: new Date(disposalDate) })
     };
     
     // If police station is being updated, find the new police station ID
     if (policeStation) {
-      let subdivisionName = policeStation;
-      if (policeStation.includes(' (')) {
-        subdivisionName = policeStation.split(' (')[0];
-      }
-      
-      const policeStationDoc = await PoliceStation.findOne({ 
-        $or: [
-          { name: subdivisionName },
-          { name: { $regex: new RegExp(subdivisionName, 'i') } },
-          { subdivision: subdivisionName }
-        ]
-      });
+      const policeStationDoc = await findPoliceStation(policeStation);
       if (!policeStationDoc) {
         return res.status(400).json({
           success: false,
-          message: 'Police station not found'
+          message: `Police station not found: ${policeStation}`
         });
       }
+      updateData.policeStation = policeStationDoc.name;
       updateData.policeStationId = policeStationDoc._id;
     }
     

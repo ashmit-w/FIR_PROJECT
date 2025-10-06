@@ -7,7 +7,12 @@ const {
   deleteFIR, 
   addRemark 
 } = require('../controllers/firController');
-const { protect, authorize } = require('../middleware/authMiddleware');
+const { 
+  protect, 
+  canAccessFIR, 
+  canCreateFIR, 
+  canDeleteFIR 
+} = require('../middleware/permissions');
 
 const router = express.Router();
 
@@ -15,14 +20,14 @@ const router = express.Router();
 router.use(protect);
 
 // @route   GET /api/firs
-// @desc    Get all FIRs
+// @desc    Get all FIRs (filtered by role)
 // @access  Private
 router.get('/', getAllFIRs);
 
 // @route   POST /api/firs
 // @desc    Create new FIR
 // @access  Private
-router.post('/', createFIR);
+router.post('/', canCreateFIR, createFIR);
 
 // @route   GET /api/firs/:id
 // @desc    Get single FIR
@@ -37,7 +42,7 @@ router.put('/:id', updateFIR);
 // @route   DELETE /api/firs/:id
 // @desc    Delete FIR
 // @access  Private (Admin only)
-router.delete('/:id', authorize('admin'), deleteFIR);
+router.delete('/:id', canDeleteFIR, deleteFIR);
 
 // @route   POST /api/firs/:id/remarks
 // @desc    Add remark to FIR
