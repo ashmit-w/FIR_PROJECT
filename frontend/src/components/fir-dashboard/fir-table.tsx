@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react"
+import { Pencil, Trash2, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { FIR } from "@/components/FirDashboard"
 
@@ -6,11 +6,12 @@ type Props = {
   items: FIR[]
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  onUpdateDisposal: (id: string) => void
   getDaysRemaining: (filingISO: string, seriousnessDays: number) => number
   getStatus: (filingISO: string, seriousnessDays: number) => "safe" | "warning" | "critical" | "urgent" | "overdue"
 }
 
-export default function FIRTable({ items, onEdit, onDelete, getDaysRemaining, getStatus }: Props) {
+export default function FIRTable({ items, onEdit, onDelete, onUpdateDisposal, getDaysRemaining, getStatus }: Props) {
   return (
     <div className="w-full overflow-x-auto">
       <table className="min-w-[1200px] w-full text-sm">
@@ -88,6 +89,14 @@ export default function FIRTable({ items, onEdit, onDelete, getDaysRemaining, ge
                       title="Edit"
                     >
                       <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onUpdateDisposal(row._id)}
+                      className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1 transition-transform hover:scale-105 hover:bg-secondary/90"
+                      aria-label={`Update disposal for ${row.firNumber}`}
+                      title="Update Disposal"
+                    >
+                      <CheckCircle className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => onDelete(row._id)}

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import FIRTable from "@/components/fir-dashboard/fir-table"
 import FIRModal, { type FIRFormData } from "@/components/fir-dashboard/fir-modal"
+import DisposalModal from "@/components/fir-dashboard/disposal-modal"
 import { firAPI } from "@/services/api"
 import { useAuth } from "@/contexts/AuthContext"
 import { POLICE_STATION_HIERARCHY } from '@/constants/policeStations'
@@ -160,6 +161,9 @@ function FirDashboard() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [disposalModalOpen, setDisposalModalOpen] = useState(false)
+  const [disposalFirId, setDisposalFirId] = useState<string | null>(null)
+  const [disposalLoading, setDisposalLoading] = useState(false)
 
   // Fetch FIRs from API
   const fetchFIRs = async () => {
@@ -327,7 +331,40 @@ function FirDashboard() {
     }
   }
 
+  const handleUpdateDisposal = (id: string) => {
+    setDisposalFirId(id)
+    setDisposalModalOpen(true)
+  }
 
+  const handleDisposalSave = async (disposalData: { status: 'Registered' | 'Chargesheeted' | 'Finalized'; dateOfDisposal: string }) => {
+    if (!disposalFirId) return
+
+    try {
+      setDisposalLoading(true)
+      setError(null) // Clear any previous errors
+      
+      // Use the same edit logic - update FIR with disposal data
+      const response = await firAPI.updateFIR(disposalFirId, {
+        status: disposalData.status,
+        disposalDate: disposalData.dateOfDisposal
+      })
+      
+      if (response && response.success) {
+        // Update the FIR in the list
+        setFirs(prev => prev.map(f => f._id === disposalFirId ? response.data : f))
+        setDisposalModalOpen(false)
+        setDisposalFirId(null)
+      } else {
+        setError(response?.message || 'Failed to update disposal')
+      }
+    } catch (err: any) {
+      console.error('Error updating disposal:', err)
+      const errorMessage = err.message || 'Failed to update disposal'
+      setError(errorMessage)
+    } finally {
+      setDisposalLoading(false)
+    }
+  }
 
   const handleSave = async (data: FIRFormData) => {
     try {
@@ -340,9 +377,7 @@ function FirDashboard() {
           sections: data.sections,
           policeStation: policeStationName,
           filingDate: new Date(data.filingDate).toISOString(),
-          seriousnessDays: data.seriousnessDays,
-          status: data.disposalStatus,
-          disposalDate: data.disposalDate ? new Date(data.disposalDate).toISOString() : null
+          seriousnessDays: data.seriousnessDays
         })
         
         if (response.success) {
@@ -358,9 +393,7 @@ function FirDashboard() {
           sections: data.sections,
           policeStation: policeStationName,
           filingDate: new Date(data.filingDate).toISOString(),
-          seriousnessDays: data.seriousnessDays,
-          status: data.disposalStatus,
-          disposalDate: data.disposalDate ? new Date(data.disposalDate).toISOString() : null
+          seriousnessDays: data.seriousnessDays
         })
         
         if (response.success) {
@@ -568,6 +601,7 @@ function FirDashboard() {
               items={filteredSorted}
               onEdit={openEdit}
               onDelete={handleDelete}
+              onUpdateDisposal={handleUpdateDisposal}
               getDaysRemaining={getDaysRemaining}
               getStatus={getStatus}
             />
@@ -596,9 +630,7 @@ function FirDashboard() {
                   station: editingItem.policeStation
                 },
                 filingDate: toISOForInput(new Date(editingItem.filingDate)),
-                seriousnessDays: editingItem.seriousnessDays,
-                disposalStatus: editingItem.disposalStatus,
-                disposalDate: editingItem.disposalDate ? toISOForInput(new Date(editingItem.disposalDate)) : ''
+                seriousnessDays: editingItem.seriousnessDays
               }
             : undefined
         }
@@ -606,6 +638,20 @@ function FirDashboard() {
         excludeNumberOnEdit={editingItem?.firNumber}
       />
 
+      {/* Disposal Modal */}
+      <DisposalModal
+        open={disposalModalOpen}
+        onClose={() => {
+          setDisposalModalOpen(false)
+          setDisposalFirId(null)
+          setError(null) // Clear error when closing modal
+        }}
+        onSave={handleDisposalSave}
+        firNumber={firs.find(f => f._id === disposalFirId)?.firNumber || ''}
+        filingDate={firs.find(f => f._id === disposalFirId)?.filingDate}
+        loading={disposalLoading}
+        error={error}
+      />
     </main>
   )
 }

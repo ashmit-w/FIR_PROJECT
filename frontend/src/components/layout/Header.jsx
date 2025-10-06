@@ -2,7 +2,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, User, Shield, Home, BarChart3 } from 'lucide-react';
+import { LogOut, User, Shield, Home, BarChart3, Workflow } from 'lucide-react';
 
 const Header = ({ onNavigate, showReportsLink = false }) => {
   const { user, logout } = useAuth();
@@ -39,8 +39,8 @@ const Header = ({ onNavigate, showReportsLink = false }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Shield className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">FIRMMS</h1>
+              <Workflow className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-bold">FIRFlow</h1>
             </div>
             
             {/* Navigation */}

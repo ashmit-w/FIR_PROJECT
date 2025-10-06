@@ -18,8 +18,6 @@ export type FIRFormData = {
   }
   filingDate: string // datetime-local value
   seriousnessDays: 60 | 90 | 180
-  disposalStatus: 'Registered' | 'Chargesheeted' | 'Finalized'
-  disposalDate?: string
 }
 
 type Props = {
@@ -112,9 +110,7 @@ export default function FIRModal({
       station: ""
     },
     filingDate: "",
-    seriousnessDays: 60,
-    disposalStatus: 'Registered',
-    disposalDate: ''
+    seriousnessDays: 60
   }))
 
   useEffect(() => {
@@ -152,9 +148,7 @@ export default function FIRModal({
             station: ""
           },
           filingDate: "",
-          seriousnessDays: 60,
-          disposalStatus: 'Registered',
-          disposalDate: ''
+          seriousnessDays: 60
         })
         
         setSelectedMainDivRegistration(defaultMainDivRegistration)
@@ -737,42 +731,6 @@ export default function FIRModal({
               ))}
             </div>
           </div>
-
-          {/* Disposal Status */}
-          <div className="flex flex-col gap-2">
-            <span className="text-sm text-muted-foreground">{"Disposal Status"}</span>
-            <div className="flex items-center gap-4">
-              {['Registered', 'Chargesheeted', 'Finalized'].map((status) => (
-                <label key={status} className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="radio"
-                    name="disposalStatus"
-                    value={status}
-                    checked={data.disposalStatus === status}
-                    onChange={() => setData((prev) => ({ ...prev, disposalStatus: status as 'Registered' | 'Chargesheeted' | 'Finalized' }))}
-                  />
-                  {status}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Disposal Date (only show if not Registered) */}
-          {data.disposalStatus !== 'Registered' && (
-            <div className="flex flex-col gap-2">
-              <label className="text-sm text-muted-foreground" htmlFor="disposalDate">
-                {"Date of Disposal"}
-              </label>
-              <input
-                id="disposalDate"
-                type="date"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={data.disposalDate || ''}
-                onChange={(e) => setData((prev) => ({ ...prev, disposalDate: e.target.value }))}
-                min={data.filingDate ? new Date(data.filingDate).toISOString().split('T')[0] : undefined}
-              />
-            </div>
-          )}
 
           {/* Act(s) & Section(s) */}
           <div className="md:col-span-2 flex flex-col gap-2">

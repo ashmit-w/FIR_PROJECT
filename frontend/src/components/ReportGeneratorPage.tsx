@@ -185,7 +185,7 @@ export default function ReportGeneratorPage() {
     if (!performanceReport) return
     
     const reportData = {
-      title: 'FIRMMS - Performance Report',
+      title: 'FIRFlow - Performance Report',
       generatedAt: new Date(performanceReport.reportGeneratedAt).toLocaleString(),
       period: `${performanceReport.reportPeriod.startDate} to ${performanceReport.reportPeriod.endDate}`,
       overview: performanceReport.overview,
@@ -208,7 +208,7 @@ export default function ReportGeneratorPage() {
     if (!firReport) return
     
     const reportData = {
-      title: 'FIRMMS - FIR Report',
+      title: 'FIRFlow - FIR Report',
       generatedAt: new Date().toLocaleString(),
       filters: firReport.filters,
       pagination: firReport.pagination,
