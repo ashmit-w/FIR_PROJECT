@@ -1,165 +1,130 @@
-import { useState, useEffect } from "react"
+import { useState } from 'react'
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Loader2, Calendar } from "lucide-react"
 
-type DisposalFormData = {
-  status: 'Chargesheeted' | 'Finalized'
-  dateOfDisposal: string
-}
-
-type Props = {
+interface DisposalModalProps {
   open: boolean
   onClose: () => void
-  onSave: (data: DisposalFormData) => void
+  onSave: (data: { status: 'Registered' | 'Chargesheeted' | 'Finalized'; dateOfDisposal: string }) => void
   firNumber: string
+  filingDate?: string
   loading?: boolean
+  error?: string
 }
 
-export default function DisposalModal({ open, onClose, onSave, firNumber, loading = false }: Props) {
-  const [data, setData] = useState<DisposalFormData>({
-    status: 'Chargesheeted',
-    dateOfDisposal: ''
-  })
+export default function DisposalModal({ 
+  open, 
+  onClose, 
+  onSave, 
+  firNumber, 
+  filingDate, 
+  loading = false, 
+  error: parentError 
+}: DisposalModalProps) {
+  const [status, setStatus] = useState<'Registered' | 'Chargesheeted' | 'Finalized'>('Chargesheeted')
+  const [dateOfDisposal, setDateOfDisposal] = useState('')
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (open) {
-      // Set current date as default
-      const now = new Date()
-      const dateStr = now.toISOString().split('T')[0]
-      setData({
-        status: 'Chargesheeted',
-        dateOfDisposal: dateStr
-      })
-      setError('')
-    }
-  }, [open])
-
-  const setCurrentDate = () => {
-    const now = new Date()
-    const dateStr = now.toISOString().split('T')[0]
-    setData(prev => ({ ...prev, dateOfDisposal: dateStr }))
-  }
-
-  const isValid = data.status && data.dateOfDisposal
-
   const handleSave = () => {
-    if (!isValid) {
-      setError('Please fill in all required fields')
+    if (!dateOfDisposal) {
+      setError('Please select a disposal date')
       return
     }
 
-    // Validate date is not in the future
-    const disposalDate = new Date(data.dateOfDisposal)
-    const today = new Date()
-    today.setHours(23, 59, 59, 999) // End of today
-
-    if (disposalDate > today) {
-      setError('Disposal date cannot be in the future')
-      return
-    }
-
-    onSave(data)
+    setError('') // Clear any previous errors
+    onSave({ status, dateOfDisposal })
   }
 
-  if (!open) return null
+  const handleClose = () => {
+    setStatus('Chargesheeted')
+    setDateOfDisposal('')
+    setError('')
+    onClose()
+  }
+
+  // Calculate minimum date (filing date or today, whichever is later)
+  const getMinDate = () => {
+    const today = new Date().toISOString().split('T')[0]
+    if (filingDate) {
+      const filingDateStr = new Date(filingDate).toISOString().split('T')[0]
+      return filingDateStr > today ? filingDateStr : today
+    }
+    return today
+  }
+
+  const handleTodayClick = () => {
+    setDateOfDisposal(getMinDate())
+  }
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* backdrop */}
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
-      
-      {/* modal */}
-      <div className="relative z-10 w-full max-w-md rounded-lg border border-border bg-card p-6 shadow-lg">
-        <h2 className="text-xl font-semibold mb-4">Update FIR Disposal</h2>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Update Disposal Status - FIR {firNumber}</DialogTitle>
+        </DialogHeader>
         
         <div className="space-y-4">
-          <div className="p-3 bg-muted rounded-md">
-            <p className="text-sm text-muted-foreground">FIR Number</p>
-            <p className="font-medium">{firNumber}</p>
-          </div>
-
-          {error && (
+          {(error || parentError) && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{error || parentError}</AlertDescription>
             </Alert>
           )}
 
-          {/* Disposal Status */}
           <div className="space-y-2">
-            <Label htmlFor="status">Disposal Status *</Label>
-            <Select
-              value={data.status}
-              onValueChange={(value: 'Chargesheeted' | 'Finalized') => 
-                setData(prev => ({ ...prev, status: value }))
-              }
-            >
+            <Label htmlFor="status">Disposal Status</Label>
+            <Select value={status} onValueChange={(value: 'Registered' | 'Chargesheeted' | 'Finalized') => setStatus(value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select disposal status" />
+                <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="Registered">Registered</SelectItem>
                 <SelectItem value="Chargesheeted">Chargesheeted</SelectItem>
                 <SelectItem value="Finalized">Finalized</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Disposal Date */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="dateOfDisposal">Date of Disposal *</Label>
+            <Label htmlFor="dateOfDisposal">Date of Disposal</Label>
+            {filingDate && (
+              <p className="text-sm text-muted-foreground">
+                Must be on or after filing date: {new Date(filingDate).toLocaleDateString()}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <input
+                id="dateOfDisposal"
+                type="date"
+                value={dateOfDisposal}
+                onChange={(e) => setDateOfDisposal(e.target.value)}
+                className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                min={getMinDate()}
+              />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={setCurrentDate}
-                className="h-7 px-2 text-xs"
+                onClick={handleTodayClick}
+                className="px-3"
               >
-                <Calendar className="h-3 w-3 mr-1" />
                 Today
               </Button>
             </div>
-            <input
-              id="dateOfDisposal"
-              type="date"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={data.dateOfDisposal}
-              onChange={(e) => setData(prev => ({ ...prev, dateOfDisposal: e.target.value }))}
-              required
-            />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1"
-            >
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleClose} disabled={loading}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!isValid || loading}
-              className="flex-1"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Update Disposal'
-              )}
+            <Button onClick={handleSave} disabled={loading}>
+              {loading ? 'Updating...' : 'Update Disposal'}
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

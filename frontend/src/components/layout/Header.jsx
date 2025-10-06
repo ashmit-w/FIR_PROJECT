@@ -2,9 +2,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, User, Shield, BarChart3, Home, FileText } from 'lucide-react';
+import { LogOut, User, Shield, Home, BarChart3 } from 'lucide-react';
 
-const Header = ({ onNavigate, showPerformanceLink = false, showPDFGeneratorLink = false }) => {
+const Header = ({ onNavigate, showReportsLink = false }) => {
   const { user, logout } = useAuth();
 
   const getRoleDisplayName = (role) => {
@@ -40,7 +40,7 @@ const Header = ({ onNavigate, showPerformanceLink = false, showPDFGeneratorLink 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Shield className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-bold">FIR Management System</h1>
+              <h1 className="text-xl font-bold">FIRMMS</h1>
             </div>
             
             {/* Navigation */}
@@ -54,26 +54,15 @@ const Header = ({ onNavigate, showPerformanceLink = false, showPDFGeneratorLink 
                 <Home className="h-4 w-4" />
                 Dashboard
               </Button>
-              {showPerformanceLink && (
+              {showReportsLink && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onNavigate?.('performance')}
+                  onClick={() => onNavigate?.('reports')}
                   className="flex items-center gap-2"
                 >
                   <BarChart3 className="h-4 w-4" />
-                  Performance Report
-                </Button>
-              )}
-              {showPDFGeneratorLink && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onNavigate?.('pdf-generator')}
-                  className="flex items-center gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  PDF Generator
+                  Reports
                 </Button>
               )}
             </div>

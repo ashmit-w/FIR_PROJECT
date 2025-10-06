@@ -4,12 +4,12 @@ import AuthPage from './components/auth/AuthPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Header from './components/layout/Header';
 import FirDashboard from './components/FirDashboard';
-import PerformanceReportPage from './components/PerformanceReportPage';
 import PDFGeneratorPage from './components/PDFGeneratorPage';
+import ReportGeneratorPage from './components/ReportGeneratorPage';
 
 function App() {
   const { isAuthenticated, loading, user } = useAuth();
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'performance' | 'pdf-generator'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'pdf-generator' | 'reports'>('dashboard');
 
   if (loading) {
     return (
@@ -26,21 +26,42 @@ function App() {
     return <AuthPage />;
   }
 
-  const canViewPerformanceReport = user?.role === 'admin' || user?.role === 'sdpo';
   const canViewPDFGenerator = user?.role === 'admin';
+  const canViewReports = user?.role === 'admin' || user?.role === 'sdpo';
 
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-background">
         <Header 
           onNavigate={setCurrentPage} 
-          showPerformanceLink={canViewPerformanceReport}
-          showPDFGeneratorLink={canViewPDFGenerator}
+          showReportsLink={canViewReports}
         />
         <main className="flex-1">
           {currentPage === 'dashboard' && <FirDashboard />}
-          {currentPage === 'performance' && canViewPerformanceReport && <PerformanceReportPage />}
           {currentPage === 'pdf-generator' && canViewPDFGenerator && <PDFGeneratorPage />}
+          {currentPage === 'reports' && canViewReports && <ReportGeneratorPage />}
+          {currentPage === 'pdf-generator' && !canViewPDFGenerator && (
+            <div className="container mx-auto py-8 px-4">
+              <div className="max-w-2xl mx-auto text-center">
+                <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+                <p className="text-muted-foreground">
+                  You need admin privileges to access the PDF Generator. 
+                  Current role: {user?.role || 'Unknown'}
+                </p>
+              </div>
+            </div>
+          )}
+          {currentPage === 'reports' && !canViewReports && (
+            <div className="container mx-auto py-8 px-4">
+              <div className="max-w-2xl mx-auto text-center">
+                <h1 className="text-2xl font-bold text-red-600 mb-4">Access Denied</h1>
+                <p className="text-muted-foreground">
+                  You need admin or SDPO privileges to access the Reports. 
+                  Current role: {user?.role || 'Unknown'}
+                </p>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </ProtectedRoute>

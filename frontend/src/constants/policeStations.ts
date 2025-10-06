@@ -63,22 +63,22 @@ export const POLICE_STATION_HIERARCHY = [
     ]
   },
   {
-    label: "ANC",
+    label: "Anc",
     value: "anc",
     stations: ["ANCPS"]
   },
   {
-    label: "CRIME BRANCH",
+    label: "Crime Branch",
     value: "crime_branch",
     stations: ["CBPS"]
   },
   {
-    label: "ECONOMIC OFFENCE CELL",
+    label: "Economic Offence Cell",
     value: "economic_offence_cell",
     stations: ["EOC PS"]
   },
   {
-    label: "SIT (LAND GRABBING)",
+    label: "SIT (Land Grabbing)",
     value: "sit_land_grabbing",
     stations: ["SIT (LAND GRABBING)"],
     isAssignedOnly: true
@@ -96,10 +96,10 @@ export const POLICE_STATION_HIERARCHY = [
   {
     label: "Coastal Security",
     value: "coastal_security",
-    stations: ["BETUL COASTAL PS", "CHAPORA COASTAL PS", "PANJI COASTAL PS", "TIRACOL COASTAL PS", "SIOLIM COASTAL PS", "TALPONA COASTAL PS", "HARBOUR COASTAL PS"]
+    stations: ["Betul Coastal PS", "Chapora Coastal PS", "Panji Coastal PS", "Tiracol Coastal PS", "Siolim Coastal PS", "Talpona Coastal PS", "Harbour Coastal PS"]
   },
   {
-    label: "WOMEN SAFETY",
+    label: "Women Safety",
     value: "women_safety",
     stations: ["WSPS"]
   }

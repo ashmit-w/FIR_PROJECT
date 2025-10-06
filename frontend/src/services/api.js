@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 second timeout
 });
 
 // Request interceptor to add auth token
@@ -32,7 +33,10 @@ api.interceptors.response.use(
       // Token expired or invalid
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('login')) {
+        window.location.href = '/';
+      }
     }
     return Promise.reject(error);
   }
@@ -105,13 +109,44 @@ export const firAPI = {
 
   // Update FIR disposal status
   updateDisposal: async (id, disposalData) => {
-    const response = await api.patch(`/firs/${id}/disposal`, disposalData);
+    const response = await api.patch(`/disposal/${id}`, disposalData);
     return response.data;
   },
 
   // Get performance report
-  getPerformanceReport: async () => {
-    const response = await api.get('/performance-report');
+  getPerformanceReport: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.policeStationId && filters.policeStationId !== 'all') {
+      params.append('policeStationId', filters.policeStationId);
+    }
+    
+    const queryString = params.toString();
+    const url = queryString ? `/reports/performance?${queryString}` : '/reports/performance';
+    
+    const response = await api.get(url);
+    return response.data;
+  },
+
+  // Get detailed FIR report
+  getFIRReport: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.policeStationId && filters.policeStationId !== 'all') {
+      params.append('policeStationId', filters.policeStationId);
+    }
+    if (filters.disposalStatus && filters.disposalStatus !== 'all') {
+      params.append('disposalStatus', filters.disposalStatus);
+    }
+    if (filters.page) params.append('page', filters.page);
+    if (filters.limit) params.append('limit', filters.limit);
+    
+    const queryString = params.toString();
+    const url = queryString ? `/reports/firs?${queryString}` : '/reports/firs';
+    
+    const response = await api.get(url);
     return response.data;
   },
 };
@@ -120,6 +155,12 @@ export const firAPI = {
 export const healthCheck = async () => {
   const response = await api.get('/health');
   return response.data;
+};
+
+// Export report API for easy access
+export const reportAPI = {
+  getPerformanceReport: firAPI.getPerformanceReport,
+  getFIRReport: firAPI.getFIRReport
 };
 
 export default api;

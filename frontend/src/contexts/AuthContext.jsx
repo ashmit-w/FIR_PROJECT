@@ -24,17 +24,22 @@ export const AuthProvider = ({ children }) => {
 
       if (storedToken && storedUser) {
         try {
+          console.log('AuthContext: Checking authentication with stored token');
           // Verify token is still valid by fetching profile
           const response = await authAPI.getProfile();
+          console.log('AuthContext: Profile check successful:', response);
           setUser(response.user);
           setToken(storedToken);
         } catch (error) {
+          console.log('AuthContext: Token validation failed:', error.message);
           // Token is invalid, clear storage
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           setUser(null);
           setToken(null);
         }
+      } else {
+        console.log('AuthContext: No stored token or user found');
       }
       setLoading(false);
     };
@@ -44,7 +49,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
+      console.log('AuthContext: Attempting login with credentials:', credentials);
       const response = await authAPI.login(credentials);
+      console.log('AuthContext: Login response:', response);
       
       if (response.success) {
         const { token: newToken, user: userData } = response;
@@ -56,12 +63,15 @@ export const AuthProvider = ({ children }) => {
         setToken(newToken);
         setUser(userData);
         
+        console.log('AuthContext: Login successful, user set:', userData);
         return { success: true, user: userData };
       } else {
+        console.log('AuthContext: Login failed:', response.message);
         return { success: false, message: response.message };
       }
     } catch (error) {
-      const message = error.response?.data?.message || 'Login failed';
+      console.error('AuthContext: Login error:', error);
+      const message = error.response?.data?.message || error.message || 'Login failed';
       return { success: false, message };
     }
   };

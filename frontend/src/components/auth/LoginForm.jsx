@@ -68,7 +68,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
     <Card className="w-full max-w-md mx-auto p-6">
       <div className="space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">FIR Management System</h1>
+          <h1 className="text-2xl font-bold">FIRMMS</h1>
           <p className="text-muted-foreground mt-2">Sign in to your account</p>
         </div>
 

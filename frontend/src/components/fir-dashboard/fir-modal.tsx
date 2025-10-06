@@ -18,6 +18,8 @@ export type FIRFormData = {
   }
   filingDate: string // datetime-local value
   seriousnessDays: 60 | 90 | 180
+  disposalStatus: 'Registered' | 'Chargesheeted' | 'Finalized'
+  disposalDate?: string
 }
 
 type Props = {
@@ -46,6 +48,7 @@ export default function FIRModal({
   const [selectedMainDivAssigned, setSelectedMainDivAssigned] = useState<string>('')
   const [selectedSubdivisionAssigned, setSelectedSubdivisionAssigned] = useState<string>('')
   const [selectedStationAssigned, setSelectedStationAssigned] = useState<string>('')
+  const [sameAsRegistration, setSameAsRegistration] = useState<boolean>(true)
 
   // Helper functions to work with police station hierarchy
   const getMainDivisions = () => {
@@ -110,6 +113,8 @@ export default function FIRModal({
     },
     filingDate: "",
     seriousnessDays: 60,
+    disposalStatus: 'Registered',
+    disposalDate: ''
   }))
 
   useEffect(() => {
@@ -122,6 +127,13 @@ export default function FIRModal({
         setSelectedMainDivAssigned(initialData.assignedPoliceStation.mainDivision)
         setSelectedSubdivisionAssigned(initialData.assignedPoliceStation.subdivision)
         setSelectedStationAssigned(initialData.assignedPoliceStation.station)
+        
+        // Check if assigned police station is same as registration
+        const isSame = 
+          initialData.policeStationOfRegistration.mainDivision === initialData.assignedPoliceStation.mainDivision &&
+          initialData.policeStationOfRegistration.subdivision === initialData.assignedPoliceStation.subdivision &&
+          initialData.policeStationOfRegistration.station === initialData.assignedPoliceStation.station
+        setSameAsRegistration(isSame)
       } else {
         const defaultMainDivRegistration = getMainDivisionsForRegistration()[0] ?? ""
         const defaultMainDivAssigned = getMainDivisions()[0] ?? ""
@@ -141,6 +153,8 @@ export default function FIRModal({
           },
           filingDate: "",
           seriousnessDays: 60,
+          disposalStatus: 'Registered',
+          disposalDate: ''
         })
         
         setSelectedMainDivRegistration(defaultMainDivRegistration)
@@ -159,6 +173,13 @@ export default function FIRModal({
     setSelectedSubdivisionRegistration("")
     setSelectedStationRegistration("")
     
+    // If checkbox is checked, sync assigned police station
+    if (sameAsRegistration) {
+      setSelectedMainDivAssigned(value)
+      setSelectedSubdivisionAssigned("")
+      setSelectedStationAssigned("")
+    }
+    
     if (value && !hasSubdivisions(value)) {
       // Unit with direct stations (no subdivisions)
       if (hasSingleStation(value)) {
@@ -173,6 +194,19 @@ export default function FIRModal({
             station: stationName
           }
         }))
+        
+        // If checkbox is checked, sync assigned police station
+        if (sameAsRegistration) {
+          setSelectedStationAssigned(stationName)
+          setData(prev => ({
+            ...prev,
+            assignedPoliceStation: {
+              mainDivision: value,
+              subdivision: "",
+              station: stationName
+            }
+          }))
+        }
       } else {
         // Multiple stations unit (like Coastal Security) - leave station empty for user selection
         setData(prev => ({
@@ -183,6 +217,18 @@ export default function FIRModal({
             station: ""
           }
         }))
+        
+        // If checkbox is checked, sync assigned police station
+        if (sameAsRegistration) {
+          setData(prev => ({
+            ...prev,
+            assignedPoliceStation: {
+              mainDivision: value,
+              subdivision: "",
+              station: ""
+            }
+          }))
+        }
       }
     } else {
       // District with subdivisions
@@ -194,6 +240,18 @@ export default function FIRModal({
           station: ""
         }
       }))
+      
+      // If checkbox is checked, sync assigned police station
+      if (sameAsRegistration) {
+        setData(prev => ({
+          ...prev,
+          assignedPoliceStation: {
+            mainDivision: value,
+            subdivision: "",
+            station: ""
+          }
+        }))
+      }
     }
   }
 
@@ -208,6 +266,20 @@ export default function FIRModal({
         station: ""
       }
     }))
+    
+    // If checkbox is checked, sync assigned police station
+    if (sameAsRegistration) {
+      setSelectedSubdivisionAssigned(value)
+      setSelectedStationAssigned("")
+      setData(prev => ({
+        ...prev,
+        assignedPoliceStation: {
+          ...prev.assignedPoliceStation,
+          subdivision: value,
+          station: ""
+        }
+      }))
+    }
   }
 
   const handleStationRegistrationChange = (value: string) => {
@@ -219,6 +291,18 @@ export default function FIRModal({
         station: value
       }
     }))
+    
+    // If checkbox is checked, sync assigned police station
+    if (sameAsRegistration) {
+      setSelectedStationAssigned(value)
+      setData(prev => ({
+        ...prev,
+        assignedPoliceStation: {
+          ...prev.assignedPoliceStation,
+          station: value
+        }
+      }))
+    }
   }
 
   // Handlers for Assigned Police Station dropdowns
@@ -226,6 +310,12 @@ export default function FIRModal({
     setSelectedMainDivAssigned(value)
     setSelectedSubdivisionAssigned("")
     setSelectedStationAssigned("")
+    
+    // Update checkbox state - check if it's still same as registration
+    const isSame = value === selectedMainDivRegistration && 
+                   "" === selectedSubdivisionRegistration && 
+                   "" === selectedStationRegistration
+    setSameAsRegistration(isSame)
     
     if (value && !hasSubdivisions(value)) {
       // Unit with direct stations (no subdivisions)
@@ -241,6 +331,12 @@ export default function FIRModal({
             station: stationName
           }
         }))
+        
+        // Update checkbox state again after station is set
+        const isSameAfterStation = value === selectedMainDivRegistration && 
+                                   "" === selectedSubdivisionRegistration && 
+                                   stationName === selectedStationRegistration
+        setSameAsRegistration(isSameAfterStation)
       } else {
         // Multiple stations unit (like Coastal Security) - leave station empty for user selection
         setData(prev => ({
@@ -276,6 +372,12 @@ export default function FIRModal({
         station: ""
       }
     }))
+    
+    // Update checkbox state
+    const isSame = selectedMainDivAssigned === selectedMainDivRegistration && 
+                   value === selectedSubdivisionRegistration && 
+                   "" === selectedStationRegistration
+    setSameAsRegistration(isSame)
   }
 
   const handleStationAssignedChange = (value: string) => {
@@ -287,6 +389,33 @@ export default function FIRModal({
         station: value
       }
     }))
+    
+    // Update checkbox state
+    const isSame = selectedMainDivAssigned === selectedMainDivRegistration && 
+                   selectedSubdivisionAssigned === selectedSubdivisionRegistration && 
+                   value === selectedStationRegistration
+    setSameAsRegistration(isSame)
+  }
+
+  // Handler for "same as registration" checkbox
+  const handleSameAsRegistrationChange = (checked: boolean) => {
+    setSameAsRegistration(checked)
+    
+    if (checked) {
+      // Copy registration values to assigned
+      setSelectedMainDivAssigned(selectedMainDivRegistration)
+      setSelectedSubdivisionAssigned(selectedSubdivisionRegistration)
+      setSelectedStationAssigned(selectedStationRegistration)
+      
+      setData(prev => ({
+        ...prev,
+        assignedPoliceStation: {
+          mainDivision: prev.policeStationOfRegistration.mainDivision,
+          subdivision: prev.policeStationOfRegistration.subdivision,
+          station: prev.policeStationOfRegistration.station
+        }
+      }))
+    }
   }
 
   const title = initialData ? "Edit FIR" : "Add New FIR"
@@ -442,86 +571,108 @@ export default function FIRModal({
 
           {/* Assigned Police Station */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm text-muted-foreground">
-              {"Assigned Police Station"}
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedMainDivAssigned}
-                onChange={(e) => handleMainDivAssignedChange(e.target.value)}
-              >
-                <option value="">Select Main Division</option>
-                {getMainDivisions().map((division) => (
-                  <option key={division} value={division}>
-                    {division}
-                  </option>
-                ))}
-              </select>
-              
-              {/* Conditional rendering for subdivision dropdown */}
-              {selectedMainDivAssigned && hasSubdivisions(selectedMainDivAssigned) && (
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-muted-foreground">
+                {"Assigned Police Station"}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sameAsRegistration}
+                  onChange={(e) => handleSameAsRegistrationChange(e.target.checked)}
+                  className="rounded border-input"
+                />
+                Same as PS of Registration
+              </label>
+            </div>
+            
+            {/* Only show assigned police station fields when checkbox is unchecked */}
+            {!sameAsRegistration && (
+              <div className="grid grid-cols-3 gap-2">
                 <select
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={selectedSubdivisionAssigned}
-                  onChange={(e) => handleSubdivisionAssignedChange(e.target.value)}
+                  value={selectedMainDivAssigned}
+                  onChange={(e) => handleMainDivAssignedChange(e.target.value)}
                 >
-                  <option value="">Select Subdivision</option>
-                  {getSubdivisions(selectedMainDivAssigned).map((subdivision) => (
-                    <option key={subdivision} value={subdivision}>
-                      {subdivision}
+                  <option value="">Select Main Division</option>
+                  {getMainDivisions().map((division) => (
+                    <option key={division} value={division}>
+                      {division}
                     </option>
                   ))}
                 </select>
-              )}
-              
-              {/* Conditional rendering for station dropdown or disabled input */}
-              {selectedMainDivAssigned && (
-                <>
-                  {hasSubdivisions(selectedMainDivAssigned) ? (
-                    // Show station dropdown for districts with subdivisions
-                    selectedSubdivisionAssigned && (
-                      <select
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={selectedStationAssigned}
-                        onChange={(e) => handleStationAssignedChange(e.target.value)}
-                      >
-                        <option value="">Select Station</option>
-                        {getStations(selectedMainDivAssigned, selectedSubdivisionAssigned).map((station) => (
-                          <option key={station} value={station}>
-                            {station}
-                          </option>
-                        ))}
-                      </select>
-                    )
-                  ) : (
-                    // Show station dropdown for units with multiple stations, disabled input for single station
-                    hasSingleStation(selectedMainDivAssigned) ? (
-                      <input
-                        type="text"
-                        className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
-                        value={selectedStationAssigned}
-                        disabled
-                        readOnly
-                      />
+                
+                {/* Conditional rendering for subdivision dropdown */}
+                {selectedMainDivAssigned && hasSubdivisions(selectedMainDivAssigned) && (
+                  <select
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={selectedSubdivisionAssigned}
+                    onChange={(e) => handleSubdivisionAssignedChange(e.target.value)}
+                  >
+                    <option value="">Select Subdivision</option>
+                    {getSubdivisions(selectedMainDivAssigned).map((subdivision) => (
+                      <option key={subdivision} value={subdivision}>
+                        {subdivision}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                
+                {/* Conditional rendering for station dropdown or disabled input */}
+                {selectedMainDivAssigned && (
+                  <>
+                    {hasSubdivisions(selectedMainDivAssigned) ? (
+                      // Show station dropdown for districts with subdivisions
+                      selectedSubdivisionAssigned && (
+                        <select
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={selectedStationAssigned}
+                          onChange={(e) => handleStationAssignedChange(e.target.value)}
+                        >
+                          <option value="">Select Station</option>
+                          {getStations(selectedMainDivAssigned, selectedSubdivisionAssigned).map((station) => (
+                            <option key={station} value={station}>
+                              {station}
+                            </option>
+                          ))}
+                        </select>
+                      )
                     ) : (
-                      <select
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={selectedStationAssigned}
-                        onChange={(e) => handleStationAssignedChange(e.target.value)}
-                      >
-                        <option value="">Select Station</option>
-                        {getDirectStations(selectedMainDivAssigned).map((station) => (
-                          <option key={station} value={station}>
-                            {station}
-                          </option>
-                        ))}
-                      </select>
-                    )
-                  )}
-                </>
-              )}
-            </div>
+                      // Show station dropdown for units with multiple stations, disabled input for single station
+                      hasSingleStation(selectedMainDivAssigned) ? (
+                        <input
+                          type="text"
+                          className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
+                          value={selectedStationAssigned}
+                          disabled
+                          readOnly
+                        />
+                      ) : (
+                        <select
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={selectedStationAssigned}
+                          onChange={(e) => handleStationAssignedChange(e.target.value)}
+                        >
+                          <option value="">Select Station</option>
+                          {getDirectStations(selectedMainDivAssigned).map((station) => (
+                            <option key={station} value={station}>
+                              {station}
+                            </option>
+                          ))}
+                        </select>
+                      )
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+            
+            {/* Show a message when checkbox is checked */}
+            {sameAsRegistration && (
+              <div className="text-sm text-muted-foreground italic">
+                Assigned police station will be automatically set same as the police station of registration.
+              </div>
+            )}
           </div>
 
           {/* Date of Registration */}
@@ -586,6 +737,42 @@ export default function FIRModal({
               ))}
             </div>
           </div>
+
+          {/* Disposal Status */}
+          <div className="flex flex-col gap-2">
+            <span className="text-sm text-muted-foreground">{"Disposal Status"}</span>
+            <div className="flex items-center gap-4">
+              {['Registered', 'Chargesheeted', 'Finalized'].map((status) => (
+                <label key={status} className="inline-flex items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="disposalStatus"
+                    value={status}
+                    checked={data.disposalStatus === status}
+                    onChange={() => setData((prev) => ({ ...prev, disposalStatus: status as 'Registered' | 'Chargesheeted' | 'Finalized' }))}
+                  />
+                  {status}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Disposal Date (only show if not Registered) */}
+          {data.disposalStatus !== 'Registered' && (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-muted-foreground" htmlFor="disposalDate">
+                {"Date of Disposal"}
+              </label>
+              <input
+                id="disposalDate"
+                type="date"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={data.disposalDate || ''}
+                onChange={(e) => setData((prev) => ({ ...prev, disposalDate: e.target.value }))}
+                min={data.filingDate ? new Date(data.filingDate).toISOString().split('T')[0] : undefined}
+              />
+            </div>
+          )}
 
           {/* Act(s) & Section(s) */}
           <div className="md:col-span-2 flex flex-col gap-2">
