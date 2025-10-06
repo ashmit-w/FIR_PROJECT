@@ -41,7 +41,7 @@ app.use('/api/reports', require('./routes/reportRoutes'));
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'FIR Management System API is running',
+    message: 'FIRFlow API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -51,7 +51,7 @@ app.get('/api/health', (req, res) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Welcome to FIR Management System API',
+    message: 'Welcome to FIRFlow API',
     version: '1.0.0',
     endpoints: {
       auth: '/api/auth',
