@@ -63,44 +63,86 @@ export const POLICE_STATION_HIERARCHY = [
     ]
   },
   {
-    label: "Anc",
-    value: "anc",
-    stations: ["ANCPS"]
-  },
-  {
-    label: "Crime Branch",
-    value: "crime_branch",
-    stations: ["CBPS"]
-  },
-  {
-    label: "Economic Offence Cell",
-    value: "economic_offence_cell",
-    stations: ["EOC PS"]
-  },
-  {
-    label: "SIT (Land Grabbing)",
-    value: "sit_land_grabbing",
-    stations: ["SIT (LAND GRABBING)"],
-    isAssignedOnly: true
-  },
-  {
-    label: "Konkan Railway",
-    value: "konkan_railway",
-    stations: ["Konkan Railway PS"]
-  },
-  {
-    label: "Cyber Crime",
-    value: "cyber_crime",
-    stations: ["CCPS"]
-  },
-  {
     label: "Coastal Security",
     value: "coastal_security",
-    stations: ["Betul Coastal PS", "Chapora Coastal PS", "Panji Coastal PS", "Tiracol Coastal PS", "Siolim Coastal PS", "Talpona Coastal PS", "Harbour Coastal PS"]
+    subdivisions: [
+      {
+        label: "Betul Coastal PS",
+        value: "betul_coastal",
+        stations: ["Betul Coastal PS"]
+      },
+      {
+        label: "Chapora Coastal PS",
+        value: "chapora_coastal",
+        stations: ["Chapora Coastal PS"]
+      },
+      {
+        label: "Panji Coastal PS",
+        value: "panji_coastal",
+        stations: ["Panji Coastal PS"]
+      },
+      {
+        label: "Tiracol Coastal PS",
+        value: "tiracol_coastal",
+        stations: ["Tiracol Coastal PS"]
+      },
+      {
+        label: "Siolim Coastal PS",
+        value: "siolim_coastal",
+        stations: ["Siolim Coastal PS"]
+      },
+      {
+        label: "Talpona Coastal PS",
+        value: "talpona_coastal",
+        stations: ["Talpona Coastal PS"]
+      },
+      {
+        label: "Harbour Coastal PS",
+        value: "harbour_coastal",
+        stations: ["Harbour Coastal PS"]
+      }
+    ]
   },
   {
-    label: "Women Safety",
-    value: "women_safety",
-    stations: ["WSPS"]
+    label: "Other",
+    value: "other",
+    subdivisions: [
+      {
+        label: "ANC",
+        value: "anc",
+        stations: ["ANCPS"]
+      },
+      {
+        label: "Crime Branch",
+        value: "crime_branch",
+        stations: ["CBPS"]
+      },
+      {
+        label: "Economic Offence Cell",
+        value: "economic_offence_cell",
+        stations: ["EOC PS"]
+      },
+      {
+        label: "SIT (Land Grabbing)",
+        value: "sit_land_grabbing",
+        stations: ["SIT (LAND GRABBING)"],
+        isAssignedOnly: true
+      },
+      {
+        label: "Konkan Railway",
+        value: "konkan_railway",
+        stations: ["Konkan Railway PS"]
+      },
+      {
+        label: "Cyber Crime",
+        value: "cyber_crime",
+        stations: ["CCPS"]
+      },
+      {
+        label: "Women Safety",
+        value: "women_safety",
+        stations: ["WSPS"]
+      }
+    ]
   }
 ];

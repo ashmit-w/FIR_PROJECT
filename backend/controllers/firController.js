@@ -10,6 +10,7 @@ const {
   sendError,
   paginate 
 } = require('../utils/errorHandler');
+const { normalizeStationName, compareStationNames, isStationInArray } = require('../utils/policeStationUtils');
 
 // Police station hierarchy data (matching frontend constants + actual DB stations)
 const POLICE_STATION_HIERARCHY = [
@@ -67,6 +68,94 @@ const POLICE_STATION_HIERARCHY = [
         label: "Ponda",
         value: "ponda_sd",
         stations: ["PONDA PS", "MARDOL PS", "COLLEM PS"]
+      },
+      {
+        label: "Canacona",
+        value: "canacona_sd",
+        stations: ["CANACONA PS"]
+      }
+    ]
+  },
+  {
+    label: "Coastal Security",
+    value: "coastal_security",
+    subdivisions: [
+      {
+        label: "Betul Coastal PS",
+        value: "betul_coastal",
+        stations: ["BETUL COASTAL PS"]
+      },
+      {
+        label: "Chapora Coastal PS",
+        value: "chapora_coastal",
+        stations: ["CHAPORA COASTAL PS"]
+      },
+      {
+        label: "Panji Coastal PS",
+        value: "panji_coastal",
+        stations: ["PANJI COASTAL PS"]
+      },
+      {
+        label: "Tiracol Coastal PS",
+        value: "tiracol_coastal",
+        stations: ["TIRACOL COASTAL PS"]
+      },
+      {
+        label: "Siolim Coastal PS",
+        value: "siolim_coastal",
+        stations: ["SIOLIM COASTAL PS"]
+      },
+      {
+        label: "Talpona Coastal PS",
+        value: "talpona_coastal",
+        stations: ["TALPONA COASTAL PS"]
+      },
+      {
+        label: "Harbour Coastal PS",
+        value: "harbour_coastal",
+        stations: ["HARBOUR COASTAL PS"]
+      }
+    ]
+  },
+  {
+    label: "Other",
+    value: "other",
+    subdivisions: [
+      {
+        label: "ANC",
+        value: "anc",
+        stations: ["ANCPS"]
+      },
+      {
+        label: "Crime Branch",
+        value: "crime_branch",
+        stations: ["CBPS"]
+      },
+      {
+        label: "Economic Offence Cell",
+        value: "economic_offence_cell",
+        stations: ["EOC PS"]
+      },
+      {
+        label: "SIT (Land Grabbing)",
+        value: "sit_land_grabbing",
+        stations: ["SIT (LAND GRABBING)"],
+        isAssignedOnly: true
+      },
+      {
+        label: "Konkan Railway",
+        value: "konkan_railway",
+        stations: ["KONKAN RAILWAY PS"]
+      },
+      {
+        label: "Cyber Crime",
+        value: "cyber_crime",
+        stations: ["CCPS"]
+      },
+      {
+        label: "Women Safety",
+        value: "women_safety",
+        stations: ["WSPS"]
       }
     ]
   }
@@ -86,6 +175,8 @@ const getStationsBySubdivision = (subdivisionValue) => {
   return subdivision ? subdivision.stations : [];
 };
 
+// Note: normalizeStationName is now imported from utils/policeStationUtils
+
 // @desc    Get all FIRs
 // @route   GET /api/firs
 // @access  Private
@@ -98,7 +189,7 @@ const getAllFIRs = asyncHandler(async (req, res) => {
   // Handle police station filtering (including hierarchical)
   if (policeStation) {
     // Support hierarchical filtering
-    if (policeStation.includes('_district')) {
+    if (policeStation.includes('_district') || policeStation === 'north_district' || policeStation === 'south_district') {
       // Filter by district - need to get all stations in that district
       const districtStations = getStationsByDistrict(policeStation);
       filter.$or = [
@@ -106,28 +197,48 @@ const getAllFIRs = asyncHandler(async (req, res) => {
         { assignedPoliceStation: { $in: districtStations } },
         { policeStation: { $in: districtStations } } // Backward compatibility
       ];
-    } else if (policeStation.includes('_sd')) {
+    } else if (policeStation.includes('_sd') || policeStation.includes('_coastal') || 
+               policeStation === 'anc' || policeStation === 'crime_branch' || 
+               policeStation === 'economic_offence_cell' || policeStation === 'sit_land_grabbing' ||
+               policeStation === 'konkan_railway' || policeStation === 'cyber_crime' || 
+               policeStation === 'women_safety') {
       // Filter by subdivision - need to get all stations in that subdivision
+      // This handles: regular subdivisions (_sd), coastal (_coastal), and other categories
       const subdivisionStations = getStationsBySubdivision(policeStation);
       filter.$or = [
         { policeStationOfRegistration: { $in: subdivisionStations } },
         { assignedPoliceStation: { $in: subdivisionStations } },
         { policeStation: { $in: subdivisionStations } } // Backward compatibility
       ];
+    } else if (policeStation === 'coastal_security' || policeStation === 'other') {
+      // Filter by main category (Coastal Security or Other) - get all stations in all subdivisions
+      const district = POLICE_STATION_HIERARCHY.find(dist => dist.value === policeStation);
+      if (district && district.subdivisions) {
+        const allStations = district.subdivisions.flatMap(sub => sub.stations);
+        filter.$or = [
+          { policeStationOfRegistration: { $in: allStations } },
+          { assignedPoliceStation: { $in: allStations } },
+          { policeStation: { $in: allStations } } // Backward compatibility
+        ];
+      }
     } else {
-      // Filter by specific station
+      // Filter by specific station - normalize to uppercase for case-insensitive matching
+      const normalizedStation = normalizeStationName(policeStation);
       filter.$or = [
-        { policeStationOfRegistration: policeStation },
-        { assignedPoliceStation: policeStation },
-        { policeStation: policeStation } // Backward compatibility
+        { policeStationOfRegistration: normalizedStation },
+        { assignedPoliceStation: normalizedStation },
+        { policeStation: normalizedStation } // Backward compatibility
       ];
     }
   } else {
     // Role-based filtering (only if no specific police station filter)
     if (req.user.role === 'ps') {
-      filter.policeStation = req.user.police_station;
+      // Normalize user's police station to ensure matching
+      filter.policeStation = normalizeStationName(req.user.police_station);
     } else if (req.user.role === 'sdpo') {
-      filter.policeStation = { $in: req.user.subdivision_stations };
+      // Normalize subdivision stations array
+      const normalizedStations = req.user.subdivision_stations.map(s => normalizeStationName(s));
+      filter.policeStation = { $in: normalizedStations };
     }
     // Admin sees all FIRs (no additional filter)
   }
@@ -281,15 +392,15 @@ const getFIR = async (req, res) => {
       });
     }
     
-    // Check if user has access to this FIR
-    if (req.user.role === 'ps' && fir.policeStation !== req.user.police_station) {
+    // Check if user has access to this FIR (case-insensitive comparison)
+    if (req.user.role === 'ps' && !compareStationNames(fir.policeStation, req.user.police_station)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
       });
     }
     
-    if (req.user.role === 'sdpo' && !req.user.subdivision_stations.includes(fir.policeStation)) {
+    if (req.user.role === 'sdpo' && !isStationInArray(fir.policeStation, req.user.subdivision_stations)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -313,26 +424,24 @@ const getFIR = async (req, res) => {
 const findPoliceStation = async (policeStationName) => {
   console.log('Looking up police station:', policeStationName);
   
-  // Try exact match first
-  let policeStationDoc = await PoliceStation.findOne({ name: policeStationName });
-  console.log('Exact match result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+  // Normalize the input name first
+  let normalizedName = normalizeStationName(policeStationName);
   
-  if (!policeStationDoc) {
-    // Try extracting station name from format "Station (Division)"
-    if (policeStationName.includes(' (')) {
-      const stationName = policeStationName.split(' (')[0].toUpperCase();
-      console.log('Trying extracted name:', stationName);
-      policeStationDoc = await PoliceStation.findOne({ name: stationName });
-      console.log('Extracted name result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
-    }
+  // Try extracting station name from format "Station (Division)" if needed
+  if (policeStationName.includes(' (')) {
+    normalizedName = normalizeStationName(policeStationName.split(' (')[0]);
   }
   
+  // Try exact match with normalized name (database stores uppercase)
+  let policeStationDoc = await PoliceStation.findOne({ name: normalizedName });
+  console.log('Normalized match result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+  
+  // If still not found, try case-insensitive regex as fallback
   if (!policeStationDoc) {
-    // Try case-insensitive search
     policeStationDoc = await PoliceStation.findOne({ 
-      name: { $regex: new RegExp(`^${policeStationName}$`, 'i') } 
+      name: { $regex: new RegExp(`^${policeStationName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } 
     });
-    console.log('Case-insensitive result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
+    console.log('Case-insensitive regex result:', policeStationDoc ? policeStationDoc.name : 'NOT FOUND');
   }
   
   return policeStationDoc;
@@ -446,15 +555,15 @@ const updateFIR = async (req, res) => {
       firSubdivisionName = fir.policeStation.split(' (')[0];
     }
     
-    // Check if user has permission to update this FIR
-    if (req.user.role === 'ps' && firSubdivisionName !== req.user.police_station) {
+    // Check if user has permission to update this FIR (case-insensitive comparison)
+    if (req.user.role === 'ps' && !compareStationNames(firSubdivisionName, req.user.police_station)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
       });
     }
     
-    if (req.user.role === 'sdpo' && !req.user.subdivision_stations.includes(firSubdivisionName)) {
+    if (req.user.role === 'sdpo' && !isStationInArray(firSubdivisionName, req.user.subdivision_stations)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -576,15 +685,15 @@ const addRemark = async (req, res) => {
       });
     }
     
-    // Check if user has permission to add remarks
-    if (req.user.role === 'ps' && fir.policeStation !== req.user.police_station) {
+    // Check if user has permission to add remarks (case-insensitive comparison)
+    if (req.user.role === 'ps' && !compareStationNames(fir.policeStation, req.user.police_station)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
       });
     }
     
-    if (req.user.role === 'sdpo' && !req.user.subdivision_stations.includes(fir.policeStation)) {
+    if (req.user.role === 'sdpo' && !isStationInArray(fir.policeStation, req.user.subdivision_stations)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'

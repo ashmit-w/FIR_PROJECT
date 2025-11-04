@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { normalizeStationName, normalizeStationNames } = require('../utils/policeStationUtils');
 
 // Enhanced User Schema with better validation
 const userSchema = new mongoose.Schema({
@@ -65,6 +66,21 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ role: 1 });
 userSchema.index({ police_station: 1 });
 userSchema.index({ isActive: 1 });
+
+// Normalize police station names before saving
+userSchema.pre('save', function(next) {
+  // Normalize police_station to uppercase
+  if (this.police_station) {
+    this.police_station = normalizeStationName(this.police_station);
+  }
+  
+  // Normalize subdivision_stations array to uppercase
+  if (Array.isArray(this.subdivision_stations) && this.subdivision_stations.length > 0) {
+    this.subdivision_stations = normalizeStationNames(this.subdivision_stations);
+  }
+  
+  next();
+});
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

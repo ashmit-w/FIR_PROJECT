@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Download, FileText, Loader2, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle, Building2, Calendar, Users } from 'lucide-react'
+import { FileText, Loader2, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle, Building2, Calendar, Users } from 'lucide-react'
 import { reportAPI } from '@/services/api'
 
 interface PerformanceReport {
@@ -181,50 +181,6 @@ export default function ReportGeneratorPage() {
     }
   }
 
-  const downloadPerformanceReport = () => {
-    if (!performanceReport) return
-    
-    const reportData = {
-      title: 'FIRFlow - Performance Report',
-      generatedAt: new Date(performanceReport.reportGeneratedAt).toLocaleString(),
-      period: `${performanceReport.reportPeriod.startDate} to ${performanceReport.reportPeriod.endDate}`,
-      overview: performanceReport.overview,
-      stationPerformance: performanceReport.policeStationPerformance,
-      monthlyTrends: performanceReport.monthlyTrends
-    }
-    
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `performance-report-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
-
-  const downloadFIRReport = () => {
-    if (!firReport) return
-    
-    const reportData = {
-      title: 'FIRFlow - FIR Report',
-      generatedAt: new Date().toLocaleString(),
-      filters: firReport.filters,
-      pagination: firReport.pagination,
-      firs: firReport.firs
-    }
-    
-    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `fir-report-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -241,6 +197,59 @@ export default function ReportGeneratorPage() {
       case 'Yellow': return 'bg-yellow-100 text-yellow-800'
       case 'Green': return 'bg-green-100 text-green-800'
       default: return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  // Helper function to set date range
+  const setDateRange = (range: string, isPerformance: boolean = true) => {
+    const today = new Date()
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0]
+    }
+
+    let startDate: Date
+    let endDate = today
+
+    switch (range) {
+      case 'today':
+        startDate = today
+        break
+      case 'last7days':
+        startDate = new Date(today)
+        startDate.setDate(today.getDate() - 7)
+        break
+      case 'last30days':
+        startDate = new Date(today)
+        startDate.setDate(today.getDate() - 30)
+        break
+      case 'last3months':
+        startDate = new Date(today)
+        startDate.setMonth(today.getMonth() - 3)
+        break
+      case 'last6months':
+        startDate = new Date(today)
+        startDate.setMonth(today.getMonth() - 6)
+        break
+      case 'last1year':
+        startDate = new Date(today)
+        startDate.setFullYear(today.getFullYear() - 1)
+        break
+      default:
+        startDate = today
+    }
+
+    if (isPerformance) {
+      setPerformanceFilters(prev => ({
+        ...prev,
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate)
+      }))
+    } else {
+      setFirFilters(prev => ({
+        ...prev,
+        startDate: formatDate(startDate),
+        endDate: formatDate(endDate)
+      }))
     }
   }
 
@@ -279,21 +288,29 @@ export default function ReportGeneratorPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="perf-start-date">Start Date</Label>
-                  <Input
-                    id="perf-start-date"
-                    type="date"
-                    value={performanceFilters.startDate}
-                    onChange={(e) => setPerformanceFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="perf-start-date"
+                      type="date"
+                      value={performanceFilters.startDate}
+                      onChange={(e) => setPerformanceFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="perf-end-date">End Date</Label>
-                  <Input
-                    id="perf-end-date"
-                    type="date"
-                    value={performanceFilters.endDate}
-                    onChange={(e) => setPerformanceFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="perf-end-date"
+                      type="date"
+                      value={performanceFilters.endDate}
+                      onChange={(e) => setPerformanceFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="perf-police-station">Police Station</Label>
@@ -315,6 +332,55 @@ export default function ReportGeneratorPage() {
                   </Select>
                 </div>
               </div>
+              
+              {/* Quick Date Range Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last7days', true)}
+                  className="text-xs"
+                >
+                  Last 7 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last30days', true)}
+                  className="text-xs"
+                >
+                  Last 30 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last3months', true)}
+                  className="text-xs"
+                >
+                  Last 3 Months
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last6months', true)}
+                  className="text-xs"
+                >
+                  Last 6 Months
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last1year', true)}
+                  className="text-xs"
+                >
+                  Last 1 Year
+                </Button>
+              </div>
               <Button onClick={generatePerformanceReport} disabled={loading} className="w-full">
                 {loading ? (
                   <>
@@ -335,10 +401,6 @@ export default function ReportGeneratorPage() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Performance Report</h2>
-                <Button onClick={downloadPerformanceReport} variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Report
-                </Button>
               </div>
 
               {/* Overview Cards */}
@@ -505,21 +567,29 @@ export default function ReportGeneratorPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fir-start-date">Start Date</Label>
-                  <Input
-                    id="fir-start-date"
-                    type="date"
-                    value={firFilters.startDate}
-                    onChange={(e) => setFirFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="fir-start-date"
+                      type="date"
+                      value={firFilters.startDate}
+                      onChange={(e) => setFirFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fir-end-date">End Date</Label>
-                  <Input
-                    id="fir-end-date"
-                    type="date"
-                    value={firFilters.endDate}
-                    onChange={(e) => setFirFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="fir-end-date"
+                      type="date"
+                      value={firFilters.endDate}
+                      onChange={(e) => setFirFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                    />
+                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="fir-police-station">Police Station</Label>
@@ -559,6 +629,56 @@ export default function ReportGeneratorPage() {
                   </Select>
                 </div>
               </div>
+              
+              {/* Quick Date Range Buttons */}
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last7days', false)}
+                  className="text-xs"
+                >
+                  Last 7 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last30days', false)}
+                  className="text-xs"
+                >
+                  Last 30 Days
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last3months', false)}
+                  className="text-xs"
+                >
+                  Last 3 Months
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last6months', false)}
+                  className="text-xs"
+                >
+                  Last 6 Months
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDateRange('last1year', false)}
+                  className="text-xs"
+                >
+                  Last 1 Year
+                </Button>
+              </div>
+              
               <Button onClick={generateFIRReport} disabled={loading} className="w-full">
                 {loading ? (
                   <>
@@ -579,10 +699,6 @@ export default function ReportGeneratorPage() {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold">FIR Report</h2>
-                <Button onClick={downloadFIRReport} variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Report
-                </Button>
               </div>
 
               <Card>

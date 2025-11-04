@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
+const { normalizeStationName, compareStationNames, isStationInArray } = require('../utils/policeStationUtils');
 
 // @desc    Protect routes - verify JWT token
 // @access  Private
@@ -100,10 +101,10 @@ const canAccessFIR = (req, res, next) => {
     return next();
   }
 
-  // For PS role, check if FIR belongs to their police station
+  // For PS role, check if FIR belongs to their police station (case-insensitive)
   if (req.user.role === 'ps') {
     const firPoliceStation = req.fir?.policeStation || req.body?.policeStation;
-    if (firPoliceStation && firPoliceStation !== req.user.police_station) {
+    if (firPoliceStation && !compareStationNames(firPoliceStation, req.user.police_station)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You can only access FIRs from your police station.'
@@ -111,10 +112,10 @@ const canAccessFIR = (req, res, next) => {
     }
   }
 
-  // For SDPO role, check if FIR belongs to their subdivision
+  // For SDPO role, check if FIR belongs to their subdivision (case-insensitive)
   if (req.user.role === 'sdpo') {
     const firPoliceStation = req.fir?.policeStation || req.body?.policeStation;
-    if (firPoliceStation && !req.user.subdivision_stations.includes(firPoliceStation)) {
+    if (firPoliceStation && !isStationInArray(firPoliceStation, req.user.subdivision_stations)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. You can only access FIRs from your subdivision.'
@@ -142,9 +143,9 @@ const canCreateFIR = (req, res, next) => {
 
   const { policeStation } = req.body;
 
-  // For PS role, check if creating FIR for their police station
+  // For PS role, check if creating FIR for their police station (case-insensitive)
   if (req.user.role === 'ps') {
-    if (!policeStation || policeStation !== req.user.police_station) {
+    if (!policeStation || !compareStationNames(policeStation, req.user.police_station)) {
       return res.status(403).json({
         success: false,
         message: 'You can only create FIRs for your police station.'
@@ -152,9 +153,9 @@ const canCreateFIR = (req, res, next) => {
     }
   }
 
-  // For SDPO role, check if creating FIR for their subdivision
+  // For SDPO role, check if creating FIR for their subdivision (case-insensitive)
   if (req.user.role === 'sdpo') {
-    if (!policeStation || !req.user.subdivision_stations.includes(policeStation)) {
+    if (!policeStation || !isStationInArray(policeStation, req.user.subdivision_stations)) {
       return res.status(403).json({
         success: false,
         message: 'You can only create FIRs for stations in your subdivision.'

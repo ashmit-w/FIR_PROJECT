@@ -184,11 +184,15 @@ function FirDashboard() {
       }
       
       // Add police station filter if selected
+      // Priority: station > subdivision > main division
       if (selectedStation) {
+        // If station is selected, filter by that specific station
         params.policeStation = selectedStation
       } else if (selectedSubdivision) {
+        // If subdivision is selected, filter by subdivision (will get all stations in that subdivision)
         params.policeStation = selectedSubdivision
       } else if (selectedMainDiv) {
+        // If main division is selected, filter by district
         params.policeStation = selectedMainDiv
       }
       
@@ -242,6 +246,15 @@ function FirDashboard() {
     return subdivision?.stations || []
   }, [selectedSubdivision])
 
+  // Check if subdivision has only one station (don't show third dropdown)
+  const shouldShowStationDropdown = useMemo(() => {
+    if (!selectedSubdivision) return false
+    const subdivision = POLICE_STATION_HIERARCHY
+      .flatMap(district => district.subdivisions)
+      .find(sub => sub.value === selectedSubdivision)
+    return subdivision && subdivision.stations.length > 1
+  }, [selectedSubdivision])
+
   const handleMainDivChange = (value: string) => {
     setSelectedMainDiv(value)
     setSelectedSubdivision('')
@@ -251,6 +264,13 @@ function FirDashboard() {
   const handleSubdivisionChange = (value: string) => {
     setSelectedSubdivision(value)
     setSelectedStation('')
+    // If subdivision has only one station, automatically select it
+    const subdivision = POLICE_STATION_HIERARCHY
+      .flatMap(district => district.subdivisions || [])
+      .find(sub => sub.value === value)
+    if (subdivision && subdivision.stations.length === 1) {
+      setSelectedStation(subdivision.stations[0])
+    }
   }
 
   const handleStationChange = (value: string) => {
@@ -529,8 +549,8 @@ function FirDashboard() {
                     </select>
                   )}
 
-                  {/* Station */}
-                  {selectedSubdivision && (
+                  {/* Station - Only show if subdivision has more than one station */}
+                  {selectedSubdivision && shouldShowStationDropdown && (
                     <select
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={selectedStation}

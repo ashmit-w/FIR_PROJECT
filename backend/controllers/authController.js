@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
 const User = require('../models/User.model');
+const { normalizeStationName, normalizeStationNames } = require('../utils/policeStationUtils');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -48,13 +49,18 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // Normalize police station names before creating user
+    // (Note: User model pre-save hook also normalizes, but doing it here ensures consistency)
+    const normalizedPoliceStation = role === 'ps' ? normalizeStationName(police_station) : undefined;
+    const normalizedSubdivisionStations = role === 'sdpo' ? normalizeStationNames(subdivision_stations) : undefined;
+    
     // Create user
     const user = await User.create({
       username,
       password,
       role,
-      police_station: role === 'ps' ? police_station : undefined,
-      subdivision_stations: role === 'sdpo' ? subdivision_stations : undefined
+      police_station: normalizedPoliceStation,
+      subdivision_stations: normalizedSubdivisionStations
     });
 
     // Generate token
