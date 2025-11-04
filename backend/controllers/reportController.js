@@ -66,9 +66,15 @@ const generatePerformanceReport = async (req, res) => {
     const completionRate = totalFIRs > 0 ? Math.round(((chargesheetedFIRs + finalizedFIRs) / totalFIRs) * 100) : 0;
     const overdueRate = totalFIRs > 0 ? Math.round((overdueFIRs / totalFIRs) * 100) : 0;
 
+    // Build police station match filter for aggregation
+    const stationMatchFilter = { isActive: true };
+    if (policeStationId && policeStationId !== 'all') {
+      stationMatchFilter._id = new mongoose.Types.ObjectId(policeStationId);
+    }
+
     // Get police station wise performance
     const stationPerformance = await PoliceStation.aggregate([
-      { $match: { isActive: true } },
+      { $match: stationMatchFilter },
       {
         $lookup: {
           from: 'firs',

@@ -446,7 +446,7 @@ function FirDashboard() {
         {/* Header */}
         <header className="flex items-center justify-between">
           <h1 className="text-balance text-2xl md:text-3xl font-semibold">
-            FIR Lifecycle Monitoring Dashboard
+            Investigation Monitoring Dashboard
           </h1>
           <Button onClick={openAdd} className="bg-primary text-primary-foreground hover:opacity-90">
             <Plus className="mr-2 h-4 w-4" />

@@ -4,10 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { FileText, Loader2, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle, Building2, Calendar, Users } from 'lucide-react'
+import { FileText, Loader2, BarChart3, TrendingUp, Clock, CheckCircle, AlertCircle, Building2, Calendar } from 'lucide-react'
 import { reportAPI } from '@/services/api'
 
 interface PerformanceReport {
@@ -57,42 +56,7 @@ interface PerformanceReport {
   }>
 }
 
-interface FIRReport {
-  firs: Array<{
-    _id: string
-    firNumber: string
-    sections: Array<{ act: string; section: string }>
-    policeStation: string
-    filingDate: string
-    disposalStatus: string
-    disposalDate?: string
-    disposalDueDate: string
-    seriousnessDays: number
-    description: string
-    createdBy: string
-    assignedTo: string
-    daysRemaining: number
-    disposalUrgencyStatus: string
-    createdAt: string
-    updatedAt: string
-  }>
-  pagination: {
-    currentPage: number
-    totalPages: number
-    totalCount: number
-    hasNextPage: boolean
-    hasPrevPage: boolean
-  }
-  filters: {
-    startDate?: string
-    endDate?: string
-    policeStationId?: string
-    disposalStatus?: string
-  }
-}
-
 export default function ReportGeneratorPage() {
-  const [activeTab, setActiveTab] = useState('performance')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
@@ -104,25 +68,8 @@ export default function ReportGeneratorPage() {
     policeStationId: 'all'
   })
   
-  // FIR Report State
-  const [firReport, setFirReport] = useState<FIRReport | null>(null)
-  const [firFilters, setFirFilters] = useState({
-    startDate: '',
-    endDate: '',
-    policeStationId: 'all',
-    disposalStatus: 'all'
-  })
-  const [currentPage, setCurrentPage] = useState(1)
-  
   // Available options
   const [policeStations, setPoliceStations] = useState<Array<{id: string, name: string, code: string, subdivision: string}>>([])
-
-  const disposalStatusOptions = [
-    { value: 'all', label: 'All Statuses' },
-    { value: 'Registered', label: 'Registered' },
-    { value: 'Chargesheeted', label: 'Chargesheeted' },
-    { value: 'Finalized', label: 'Finalized' }
-  ]
 
   useEffect(() => {
     // Load police stations when component mounts
@@ -158,28 +105,6 @@ export default function ReportGeneratorPage() {
     }
   }
 
-  const generateFIRReport = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      
-      const response = await reportAPI.getFIRReport({
-        ...firFilters,
-        page: currentPage,
-        limit: 20
-      })
-      
-      if (response.success) {
-        setFirReport(response.data)
-      } else {
-        setError(response.message || 'Failed to generate FIR report')
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate FIR report')
-    } finally {
-      setLoading(false)
-    }
-  }
 
 
   const getStatusColor = (status: string) => {
@@ -191,17 +116,8 @@ export default function ReportGeneratorPage() {
     }
   }
 
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'Red': return 'bg-red-100 text-red-800'
-      case 'Yellow': return 'bg-yellow-100 text-yellow-800'
-      case 'Green': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   // Helper function to set date range
-  const setDateRange = (range: string, isPerformance: boolean = true) => {
+  const setDateRange = (range: string) => {
     const today = new Date()
     const formatDate = (date: Date) => {
       return date.toISOString().split('T')[0]
@@ -238,19 +154,11 @@ export default function ReportGeneratorPage() {
         startDate = today
     }
 
-    if (isPerformance) {
-      setPerformanceFilters(prev => ({
-        ...prev,
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate)
-      }))
-    } else {
-      setFirFilters(prev => ({
-        ...prev,
-        startDate: formatDate(startDate),
-        endDate: formatDate(endDate)
-      }))
-    }
+    setPerformanceFilters(prev => ({
+      ...prev,
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate)
+    }))
   }
 
   return (
@@ -269,13 +177,7 @@ export default function ReportGeneratorPage() {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="performance">Performance Report</TabsTrigger>
-          <TabsTrigger value="firs">FIR Report</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="performance" className="space-y-6">
+      <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -339,7 +241,7 @@ export default function ReportGeneratorPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateRange('last7days', true)}
+                  onClick={() => setDateRange('last7days')}
                   className="text-xs"
                 >
                   Last 7 Days
@@ -348,7 +250,7 @@ export default function ReportGeneratorPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateRange('last30days', true)}
+                  onClick={() => setDateRange('last30days')}
                   className="text-xs"
                 >
                   Last 30 Days
@@ -357,7 +259,7 @@ export default function ReportGeneratorPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateRange('last3months', true)}
+                  onClick={() => setDateRange('last3months')}
                   className="text-xs"
                 >
                   Last 3 Months
@@ -366,7 +268,7 @@ export default function ReportGeneratorPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateRange('last6months', true)}
+                  onClick={() => setDateRange('last6months')}
                   className="text-xs"
                 >
                   Last 6 Months
@@ -375,7 +277,7 @@ export default function ReportGeneratorPage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setDateRange('last1year', true)}
+                  onClick={() => setDateRange('last1year')}
                   className="text-xs"
                 >
                   Last 1 Year
@@ -552,245 +454,7 @@ export default function ReportGeneratorPage() {
               </Card>
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="firs" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                FIR Report Filters
-              </CardTitle>
-              <CardDescription>Configure filters for the detailed FIR report</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fir-start-date">Start Date</Label>
-                  <div className="relative">
-                    <Input
-                      id="fir-start-date"
-                      type="date"
-                      value={firFilters.startDate}
-                      onChange={(e) => setFirFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    />
-                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fir-end-date">End Date</Label>
-                  <div className="relative">
-                    <Input
-                      id="fir-end-date"
-                      type="date"
-                      value={firFilters.endDate}
-                      onChange={(e) => setFirFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="[&::-webkit-calendar-picker-indicator]:opacity-40 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                    />
-                    <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-40 pointer-events-none" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fir-police-station">Police Station</Label>
-                  <Select
-                    value={firFilters.policeStationId}
-                    onValueChange={(value) => setFirFilters(prev => ({ ...prev, policeStationId: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select police station" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Police Stations</SelectItem>
-                      {policeStations.map((station) => (
-                        <SelectItem key={station.id} value={station.id}>
-                          {station.name} ({station.subdivision})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="fir-status">Disposal Status</Label>
-                  <Select
-                    value={firFilters.disposalStatus}
-                    onValueChange={(value) => setFirFilters(prev => ({ ...prev, disposalStatus: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {disposalStatusOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {/* Quick Date Range Buttons */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateRange('last7days', false)}
-                  className="text-xs"
-                >
-                  Last 7 Days
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateRange('last30days', false)}
-                  className="text-xs"
-                >
-                  Last 30 Days
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateRange('last3months', false)}
-                  className="text-xs"
-                >
-                  Last 3 Months
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateRange('last6months', false)}
-                  className="text-xs"
-                >
-                  Last 6 Months
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDateRange('last1year', false)}
-                  className="text-xs"
-                >
-                  Last 1 Year
-                </Button>
-              </div>
-              
-              <Button onClick={generateFIRReport} disabled={loading} className="w-full">
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating Report...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Generate FIR Report
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {firReport && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">FIR Report</h2>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>FIR Details</CardTitle>
-                  <CardDescription>
-                    Showing {firReport.firs.length} of {firReport.pagination.totalCount} FIRs
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {firReport.firs.map((fir) => (
-                      <div key={fir._id} className="border rounded-lg p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="font-semibold text-lg">{fir.firNumber}</h3>
-                            <p className="text-sm text-muted-foreground">{fir.policeStation}</p>
-                          </div>
-                          <div className="text-right">
-                            <Badge className={getStatusColor(fir.disposalStatus)}>
-                              {fir.disposalStatus}
-                            </Badge>
-                            <Badge className={`ml-2 ${getUrgencyColor(fir.disposalUrgencyStatus)}`}>
-                              {fir.disposalUrgencyStatus}
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <p className="font-medium">Sections</p>
-                            <p className="text-muted-foreground">
-                              {fir.sections.map(s => `${s.act} ${s.section}`).join(', ')}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-medium">Filing Date</p>
-                            <p className="text-muted-foreground">
-                              {new Date(fir.filingDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-medium">Days Remaining</p>
-                            <p className="text-muted-foreground">{fir.daysRemaining}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium">Created By</p>
-                            <p className="text-muted-foreground">{fir.createdBy}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Pagination */}
-                  {firReport.pagination.totalPages > 1 && (
-                    <div className="flex items-center justify-between mt-6">
-                      <div className="text-sm text-muted-foreground">
-                        Page {firReport.pagination.currentPage} of {firReport.pagination.totalPages}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentPage(prev => Math.max(1, prev - 1))
-                            generateFIRReport()
-                          }}
-                          disabled={!firReport.pagination.hasPrevPage}
-                        >
-                          Previous
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCurrentPage(prev => prev + 1)
-                            generateFIRReport()
-                          }}
-                          disabled={!firReport.pagination.hasNextPage}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      </div>
     </div>
   )
 }
